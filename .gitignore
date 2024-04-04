@@ -1,2 +1,4 @@
 /target
-log.log
+lsp.log
+response.json
+test-rpc.sh

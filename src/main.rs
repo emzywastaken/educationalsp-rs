@@ -90,6 +90,7 @@ macro_rules! log {
         log_file.write($msg.as_bytes());
     }};
     (fmt: $msg:expr, $($arg:expr),+) => {{
+    ($msg:expr, $($arg:expr),+) => {{
             let mut opts = fs::OpenOptions::new();
             opts.append(true);
             opts.write(true);

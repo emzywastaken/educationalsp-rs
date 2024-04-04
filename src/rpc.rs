@@ -1,4 +1,3 @@
-#![allow(dead_code)] // TODO: remove this
 use std::{error::Error, fmt};
 
 use serde::{Deserialize, Serialize};
@@ -47,10 +46,9 @@ pub fn encode_message<T: Serialize>(msg: &T) -> serde_json::Result<String> {
 
 /// Decodes a Json String to a struct
 pub fn decode_message(msg: &str) -> Result<DecodeResponse, DecodeError> {
-    let idx = msg.find("\r\n\r\n").ok_or(DecodeError::SeparatorNotFound)?;
-
-    let header = &msg[..idx];
-    let content = &msg[(idx + 4)..]; // `4` is the lenght of the find pattern used.
+    let (header, content) = msg
+        .split_once("\r\n\r\n")
+        .ok_or(DecodeError::SeparatorNotFound)?;
 
     let content_length = &header["Content-length: ".len()..];
     let content_length = content_length
@@ -66,17 +64,14 @@ pub fn decode_message(msg: &str) -> Result<DecodeResponse, DecodeError> {
     })
 }
 
-pub fn split(msg: &str) -> Option<&str> {
-    let idx = msg.find("\r\n\r\n")?;
+pub fn split(msg: &str) -> Option<usize> {
+    let (header, _content) = msg.split_once("\r\n\r\n")?;
 
-    let header = &msg[..idx];
-    let content = &msg[(idx + 4)..]; // `4` is the lenght of the find pattern used.
-
-    let content_lenght = &header["Content-length: ".len()..];
+    let content_lenght = &header["Content-Length: ".len()..];
     let content_lenght = content_lenght.parse::<usize>().ok()?;
 
     let total_lenght = header.len() + 4 + content_lenght;
-    Some(&msg[..total_lenght])
+    Some(total_lenght)
 }
 
 #[cfg(test)]
@@ -84,7 +79,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn encoding() {
+    fn test_encoding() {
         #[derive(Serialize)]
         struct EncodingTest {
             testing: bool,
@@ -98,7 +93,7 @@ mod tests {
     }
 
     #[test]
-    fn decoding() {
+    fn test_decoding() {
         let incoming_msg = "Content-length: 15\r\n\r\n{\"method\":\"hi\"}";
         let resp = decode_message(&incoming_msg).unwrap();
 
@@ -108,7 +103,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn decoding_invalid_content_lenght() {
+    fn test_decoding_invalid_content_lenght() {
         let incoming_msg = "Content-length: 1s\r\n\r\n{\"method\":\"hi\"}";
         let resp = decode_message(&incoming_msg).unwrap();
 

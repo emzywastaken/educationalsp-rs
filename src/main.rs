@@ -9,59 +9,44 @@ fn main() {
     std::panic::set_hook(Box::new(|info| {
         log!("ERROR: {}\n\n\n", info);
     }));
-    ctrlc::set_handler(|| {
-        log!("INFO: lsp stopped\n\n\n");
-        std::process::exit(3);
-    }).unwrap();
     
     log!("INFO: Hey, I just started\n");
 
     let stdin = io::stdin().lock();
+    
     let mut reader = BufReader::new(stdin);
-
-    let mut buf = String::new();
-    let mut count = 0;
+    let mut content_length;
+    let mut header_buf = String::new();
     loop {
-        count += 1;
-        log!("WARN: loop '{}\n", count);
-        let _read = reader.read_line(&mut buf).unwrap();
-        log!("INFO: current buf: `{:?}`\n", buf);
-
-        match rpc::split(&buf) {
-            Some(ttl_length) => {
-                log!("INFO: ttl_lenght: {}\n", ttl_length);
-                let lenght = buf.split_once("\r\n\r\n").unwrap();
-                log!("INFO: header lenght: {}\n", lenght.0.len());
-                let mut new_buf =vec![0; ttl_length - lenght.0.len() - 4];
-                reader.read_exact(&mut new_buf).unwrap();
-                let buf_str = String::from_utf8_lossy(&new_buf);
-                buf.push_str(&buf_str);
-                log!("INFO: buf len: {}\n", buf.len());
-                log!("INFO: temp buf: {}\n", buf_str);
-            },
-            None => {log!("INFO: couldlnt split on current line continuing \n"); continue;},
-        };
-
-        let msg = buf.as_str();
-        let resp = match rpc::decode_message(msg) {
-            Ok(v) => v,
-            Err(err) => {
-                log!("ERROR: {}\n", err);
-                break;
-            },
-        };
-
+        header_buf.clear();
+        loop {
+            if reader.read_line(&mut header_buf).unwrap() == 0 {
+                log!("ERROR: No more bytes to read, exiting...\n");
+                return;
+            }
+            let (header, _) = match header_buf.split_once("\r\n\r\n") {
+                Some(v) => v,
+                None => continue,
+            };
+            log!("INFO: header: {}\n", header);
+    
+            let content_length_bytes = &header["Content-Length: ".len()..header_buf.len() - 4];
+            content_length = content_length_bytes.parse::<usize>().unwrap();
+            break;
+        }
+    
+        let mut content_buf = vec![0; content_length];
+        reader.read_exact(&mut content_buf).unwrap();
+        let msg = String::from_utf8_lossy(&content_buf);
+    
+        let resp = rpc::decode_message(&msg).unwrap();
         handle_message(&resp.method, &resp.content);
-        log!("INFO: message handled\n");
-
-        buf.clear();
-        break;
     }
 }
 
 fn handle_message(method: &str, contents: &str) {
     log!("INFO: Received msg with method: `{}`\n", method);
-    log!("INFO: contents: {}\n", contents);
+    // log!("INFO: contents: {}\n", contents);
 
     match method {
         "initialize" => {
@@ -78,8 +63,8 @@ fn handle_message(method: &str, contents: &str) {
             let reply = rpc::encode_message(&msg).unwrap();
 
             let mut writer = io::stdout();
-            writer.write(reply.as_bytes()).unwrap();
-            log!("INFO: replied with: {}\n", reply);
+            writer.write_all(reply.as_bytes()).unwrap();
+            writer.flush().unwrap();
         },
         _ => (),
     }
@@ -93,8 +78,8 @@ macro_rules! log {
         opts.append(true);
         opts.write(true);
 
-        let mut log_file = opts.open("lsp.log").unwrap();
-        log_file.write($msg.as_bytes()).unwrap();
+        let mut log_file = opts.open("/home/emzy/documents/dev/rust/poopi_doopi/lsp/lsp.log").unwrap();
+        log_file.write_all($msg.as_bytes()).unwrap();
     }};
     ($msg:expr, $($arg:expr),+) => {{
             use std::fs;
@@ -103,8 +88,8 @@ macro_rules! log {
             opts.append(true);
             opts.write(true);
 
-            let mut log_file = opts.open("lsp.log").unwrap();
+            let mut log_file = opts.open("/home/emzy/documents/dev/rust/poopi_doopi/lsp/lsp.log").unwrap();
             let message = format!($msg, $($arg),+);
-            log_file.write(message.as_bytes()).unwrap();
+            log_file.write_all(message.as_bytes()).unwrap();
     }};
 }

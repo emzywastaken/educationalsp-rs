@@ -6,7 +6,6 @@ use super::message::{Request, Response};
 pub struct InitializeRequest {
     #[serde(flatten)]
     pub request: Request,
-    #[serde(rename = "params")]
     pub params: InitializeRequestParams
 }
 

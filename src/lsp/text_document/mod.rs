@@ -1,6 +1,7 @@
 use serde::Deserialize;
 
 pub mod did_open;
+pub mod did_change;
 
 type DocumentUri = String;
 
@@ -16,4 +17,16 @@ pub struct TextDocumentItem {
     pub version: i32,
     /// The content of the opened text document.
     pub text: String,
+}
+
+#[derive(Deserialize)]
+pub struct TextDocumentIdentifier {
+    pub uri: String,
+}
+
+#[derive(Deserialize)]
+pub struct VersionedTextDocumentIdentifier {
+    #[serde(flatten)]
+    pub identifier: TextDocumentIdentifier,
+    pub version: i32,
 }

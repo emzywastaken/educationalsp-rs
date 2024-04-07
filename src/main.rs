@@ -2,6 +2,7 @@ use std::io::{self, BufRead, BufReader, Read, Write};
 use std::panic::take_hook;
 
 use crate::lsp::initialize::InitializeRequest;
+use crate::lsp::text_document::did_change::TextDocumentDidChangeNotification;
 use crate::lsp::text_document::did_open::DidOpenTextDocumentNotification;
 
 mod lsp;
@@ -34,7 +35,7 @@ fn main() {
                 Some(v) => v,
                 None => continue,
             };
-            log!("INFO: header: {}\n", header);
+            // log!("INFO: header: {}\n", header);
     
             let content_length_bytes = &header["Content-Length: ".len()..header_buf.len() - 4];
             content_length = content_length_bytes.parse::<usize>().unwrap();
@@ -81,6 +82,17 @@ fn handle_message(state: &mut analysis::State, method: &str, contents: &str) {
             log!("INFO: opened: {}\n", request.params.text_document.uri);
             state.open_document(request.params.text_document.uri, request.params.text_document.text)
         }
+        "textDocument/didChange" => {
+            let request: TextDocumentDidChangeNotification = match serde_json::from_str(contents) {
+                Ok(v) => v,
+                Err(err) => { log!("ERROR: textDocument/didOpen: {}\n", err); return; },
+            };
+
+            log!("INFO: changed: {}\n", request.params.text_document.identifier.uri);
+            for change in request.params.content_changes {
+                state.update_document(&request.params.text_document.identifier.uri, change.text);
+            }
+        },
         _ => (),
     }
 }

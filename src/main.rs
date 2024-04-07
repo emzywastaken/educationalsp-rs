@@ -1,9 +1,12 @@
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::panic::take_hook;
 
+use serde::Serialize;
+
 use crate::lsp::initialize::InitializeRequest;
 use crate::lsp::text_document::did_change::TextDocumentDidChangeNotification;
 use crate::lsp::text_document::did_open::DidOpenTextDocumentNotification;
+use crate::lsp::text_document::hover::HoverRequest;
 
 mod lsp;
 mod rpc;
@@ -19,6 +22,7 @@ fn main() {
     log!("INFO: Hey, I just started\n");
 
     let stdin = io::stdin().lock();
+    let mut stdout = io::stdout();
     
     let mut reader = BufReader::new(stdin);
     let mut content_length;
@@ -47,11 +51,11 @@ fn main() {
         let msg = String::from_utf8_lossy(&content_buf);
     
         let resp = rpc::decode_message(&msg).unwrap();
-        handle_message(&mut state, &resp.method, &resp.content);
+        handle_message(&mut stdout, &mut state, &resp.method, &resp.content);
     }
 }
 
-fn handle_message(state: &mut analysis::State, method: &str, contents: &str) {
+fn handle_message(writer: &mut impl io::Write, state: &mut analysis::State, method: &str, contents: &str) {
     log!("INFO: Received msg with method: `{}`\n", method);
     // log!("INFO: contents: {}\n", contents);
 
@@ -67,11 +71,7 @@ fn handle_message(state: &mut analysis::State, method: &str, contents: &str) {
 
             // hey... let's reply
             let msg = lsp::InitializeResponse::new(request.request.id);
-            let reply = rpc::encode_message(&msg).unwrap();
-
-            let mut writer = io::stdout();
-            writer.write_all(reply.as_bytes()).unwrap();
-            writer.flush().unwrap();
+            write_response(writer, msg);
         },
         "textDocument/didOpen" => {
             let request: DidOpenTextDocumentNotification = match serde_json::from_str(contents) {
@@ -93,8 +93,26 @@ fn handle_message(state: &mut analysis::State, method: &str, contents: &str) {
                 state.update_document(&request.params.text_document.identifier.uri, change.text);
             }
         },
+        "textDocument/hover" => {
+            let request: HoverRequest = match serde_json::from_str(contents) {
+                Ok(v) => v,
+                Err(err) => { log!("ERROR: textDocument/hover: {}\n", err); return; },
+            };
+
+            // Create a response
+            let text_pos = request.params.text_document_position_params;
+            let response = state.hover(request.request.id, text_pos.text_document.uri);
+            // Write it back
+            write_response(writer, response);
+        },
         _ => (),
     }
+}
+
+fn write_response(writer: &mut impl io::Write, msg: impl Serialize) {
+    let reply = rpc::encode_message(&msg).unwrap();
+    writer.write_all(reply.as_bytes()).unwrap();
+    writer.flush().unwrap();
 }
 
 #[macro_export]

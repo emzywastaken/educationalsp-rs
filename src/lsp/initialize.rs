@@ -39,6 +39,7 @@ impl InitializeResponse {
             result: InitializeResult {
                 capabilities: ServerCapabilities {
                     text_document_sync: 1,
+                    hover_provider: true,
                 },
                 server_info: ServerInfo {
                     name: "educationalsp-rs".into(),
@@ -60,6 +61,8 @@ pub struct InitializeResult {
 struct ServerCapabilities {
     #[serde(rename = "textDocumentSync")]
     text_document_sync: i32,
+    #[serde(rename = "hoverProvider")]
+    hover_provider: bool,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 pub mod did_open;
 pub mod did_change;
+pub mod hover;
 
 type DocumentUri = String;
 
@@ -29,4 +30,18 @@ pub struct VersionedTextDocumentIdentifier {
     #[serde(flatten)]
     pub identifier: TextDocumentIdentifier,
     pub version: i32,
+}
+
+#[derive(Deserialize)]
+pub struct TextDocumentPositionParams {
+    #[serde(rename = "textDocument")]
+    pub text_document: TextDocumentIdentifier,
+    pub position: Position,
+}
+
+#[derive(Deserialize)]
+pub struct Position {
+    /// Line position in a document (zero-based).
+    pub line: u32,
+    pub character: u32,
 }

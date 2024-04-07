@@ -2,9 +2,11 @@ use std::io::{self, BufRead, BufReader, Read, Write};
 use std::panic::take_hook;
 
 use crate::lsp::initialize::InitializeRequest;
+use crate::lsp::text_document::did_open::DidOpenTextDocumentNotification;
 
 mod lsp;
 mod rpc;
+mod analysis;
 
 fn main() {
     std::panic::set_hook(Box::new(|info| {
@@ -20,6 +22,7 @@ fn main() {
     let mut reader = BufReader::new(stdin);
     let mut content_length;
     let mut header_buf = String::new();
+    let mut state = analysis::State::new();
     loop {
         header_buf.clear();
         loop {
@@ -43,11 +46,11 @@ fn main() {
         let msg = String::from_utf8_lossy(&content_buf);
     
         let resp = rpc::decode_message(&msg).unwrap();
-        handle_message(&resp.method, &resp.content);
+        handle_message(&mut state, &resp.method, &resp.content);
     }
 }
 
-fn handle_message(method: &str, contents: &str) {
+fn handle_message(state: &mut analysis::State, method: &str, contents: &str) {
     log!("INFO: Received msg with method: `{}`\n", method);
     // log!("INFO: contents: {}\n", contents);
 
@@ -69,6 +72,15 @@ fn handle_message(method: &str, contents: &str) {
             writer.write_all(reply.as_bytes()).unwrap();
             writer.flush().unwrap();
         },
+        "textDocument/didOpen" => {
+            let request: DidOpenTextDocumentNotification = match serde_json::from_str(contents) {
+                Ok(v) => v,
+                Err(err) => { log!("ERROR: textDocument/didOpen: {}\n", err); return; },
+            };
+
+            log!("INFO: opened: {}\n", request.params.text_document.uri);
+            state.open_document(request.params.text_document.uri, request.params.text_document.text)
+        }
         _ => (),
     }
 }

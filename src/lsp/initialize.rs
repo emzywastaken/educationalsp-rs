@@ -6,7 +6,7 @@ use super::message::{Request, Response};
 pub struct InitializeRequest {
     #[serde(flatten)]
     pub request: Request,
-    pub params: InitializeRequestParams
+    pub params: InitializeRequestParams,
 }
 
 #[derive(Deserialize)]
@@ -37,10 +37,12 @@ impl InitializeResponse {
                 id: Some(id),
             },
             result: InitializeResult {
-                capabilities: ServerCapabilities {},
+                capabilities: ServerCapabilities {
+                    text_document_sync: 1,
+                },
                 server_info: ServerInfo {
-                    name: "educationalsp".into(),
-                    version: "0.0.0.0-alpha1.final".into(),
+                    name: "educationalsp-rs".into(),
+                    version: "0.0.0.0-alpha2.final".into(),
                 },
             },
         }
@@ -54,9 +56,11 @@ pub struct InitializeResult {
     server_info: ServerInfo,
 }
 
-
 #[derive(Serialize, Deserialize)]
-struct ServerCapabilities {} // TODO: implement
+struct ServerCapabilities {
+    #[serde(rename = "textDocumentSync")]
+    text_document_sync: i32,
+}
 
 #[derive(Serialize, Deserialize)]
 struct ServerInfo {

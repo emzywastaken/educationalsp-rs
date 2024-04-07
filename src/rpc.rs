@@ -40,7 +40,8 @@ pub fn encode_message<T: Serialize>(msg: &T) -> serde_json::Result<String> {
 
 /// Decodes a Json String to a struct
 pub fn decode_message(msg: &str) -> Result<DecodeResponse, DecodeError> {
-    let base_message: BaseMessage = serde_json::from_str(msg).map_err(|_| DecodeError::InvalidContent)?;
+    let base_message: BaseMessage =
+        serde_json::from_str(msg).map_err(|_| DecodeError::InvalidContent)?;
 
     Ok(DecodeResponse {
         method: base_message.method,

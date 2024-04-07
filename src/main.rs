@@ -1,4 +1,5 @@
 use std::io::{self, BufRead, BufReader, Read, Write};
+use std::panic::take_hook;
 
 use crate::lsp::initialize::InitializeRequest;
 
@@ -8,6 +9,8 @@ mod rpc;
 fn main() {
     std::panic::set_hook(Box::new(|info| {
         log!("ERROR: {}\n\n\n", info);
+        let default_hook = take_hook();
+        default_hook(info)
     }));
     
     log!("INFO: Hey, I just started\n");

@@ -3,11 +3,6 @@ use std::panic::take_hook;
 
 use serde::Serialize;
 
-use crate::lsp::initialize::InitializeRequest;
-use crate::lsp::text_document::did_change::TextDocumentDidChangeNotification;
-use crate::lsp::text_document::did_open::DidOpenTextDocumentNotification;
-use crate::lsp::text_document::hover::HoverRequest;
-
 mod lsp;
 mod rpc;
 mod analysis;
@@ -61,7 +56,7 @@ fn handle_message(writer: &mut impl io::Write, state: &mut analysis::State, meth
 
     match method {
         "initialize" => {
-            let request: InitializeRequest = match serde_json::from_str(contents) {
+            let request: lsp::InitializeRequest = match serde_json::from_str(contents) {
                 Ok(v) => v,
                 Err(err) => { log!("ERROR: Hey we couldn't parse this: {}\n", err); return; },
             };
@@ -74,7 +69,7 @@ fn handle_message(writer: &mut impl io::Write, state: &mut analysis::State, meth
             write_response(writer, msg);
         },
         "textDocument/didOpen" => {
-            let request: DidOpenTextDocumentNotification = match serde_json::from_str(contents) {
+            let request: lsp::DidOpenTextDocumentNotification = match serde_json::from_str(contents) {
                 Ok(v) => v,
                 Err(err) => { log!("ERROR: textDocument/didOpen: {}\n", err); return; },
             };
@@ -83,9 +78,9 @@ fn handle_message(writer: &mut impl io::Write, state: &mut analysis::State, meth
             state.open_document(request.params.text_document.uri, request.params.text_document.text)
         }
         "textDocument/didChange" => {
-            let request: TextDocumentDidChangeNotification = match serde_json::from_str(contents) {
+            let request: lsp::TextDocumentDidChangeNotification = match serde_json::from_str(contents) {
                 Ok(v) => v,
-                Err(err) => { log!("ERROR: textDocument/didOpen: {}\n", err); return; },
+                Err(err) => { log!("ERROR: textDocument/didChange: {}\n", err); return; },
             };
 
             log!("INFO: changed: {}\n", request.params.text_document.identifier.uri);
@@ -94,7 +89,7 @@ fn handle_message(writer: &mut impl io::Write, state: &mut analysis::State, meth
             }
         },
         "textDocument/hover" => {
-            let request: HoverRequest = match serde_json::from_str(contents) {
+            let request: lsp::HoverRequest = match serde_json::from_str(contents) {
                 Ok(v) => v,
                 Err(err) => { log!("ERROR: textDocument/hover: {}\n", err); return; },
             };
@@ -102,6 +97,18 @@ fn handle_message(writer: &mut impl io::Write, state: &mut analysis::State, meth
             // Create a response
             let text_pos = request.params.text_document_position_params;
             let response = state.hover(request.request.id, text_pos.text_document.uri);
+            // Write it back
+            write_response(writer, response);
+        },
+        "textDocument/definition" => {
+            let request: lsp::DefinitionRequest = match serde_json::from_str(contents) {
+                Ok(v) => v,
+                Err(err) => { log!("ERROR: textDocument/definition: {}\n", err); return; },
+            };
+
+            // Create a response
+            let text_pos = request.params.text_document_position_params;
+            let response = state.definition(request.request.id, &text_pos.text_document.uri, text_pos.position);
             // Write it back
             write_response(writer, response);
         },

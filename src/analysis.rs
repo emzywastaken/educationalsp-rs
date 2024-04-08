@@ -1,8 +1,10 @@
 
 use std::collections::HashMap;
 
+use crate::lsp::text_document::definition::DefinitionResponse;
 use crate::lsp::text_document::hover::{HoverResponse, HoverResult};
 use crate::lsp::message::Response;
+use crate::lsp::text_document::{Location, Position, Range};
 
 pub struct State {
     /// Map of file names(uri) to contents
@@ -37,6 +39,28 @@ impl State {
             },
             result: HoverResult {
                 contents: format!("File: {}, Characters: {}", uri, document.len()),
+            },
+        }
+    }
+
+    pub fn definition(&self, id: i32, uri: &str, position: Position) -> DefinitionResponse {
+        DefinitionResponse {
+            response: Response {
+                rpc: "2.0".into(),
+                id: Some(id),
+            },
+            result: Location {
+                uri: uri.into(),
+                range: Range {
+                    start: Position {
+                        line: position.line.saturating_sub(1),
+                        character: 0,
+                    },
+                    end: Position {
+                        line: position.line.saturating_sub(1),
+                        character: 0,
+                    },
+                },
             },
         }
     }

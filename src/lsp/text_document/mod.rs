@@ -1,8 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub mod did_open;
 pub mod did_change;
 pub mod hover;
+pub mod definition;
 
 type DocumentUri = String;
 
@@ -39,9 +40,21 @@ pub struct TextDocumentPositionParams {
     pub position: Position,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Position {
     /// Line position in a document (zero-based).
     pub line: u32,
     pub character: u32,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Location {
+    pub uri: DocumentUri,
+    pub range: Range,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Range {
+    pub start: Position,
+    pub end: Position,
 }
